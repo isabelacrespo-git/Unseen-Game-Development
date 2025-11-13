@@ -11,9 +11,11 @@ public class Sprint : MonoBehaviour
     public float maxStamina = 100f;
     public float staminaDrainRate = 20f;
     public float staminaRechargeRate = 15f;
+    public float rechargeDelay = 1f;
 
     private float currentStamina;
     private InputDevice leftController;
+    private float timeSinceLastSprint = 0f;
 
     void Start()
     {
@@ -30,19 +32,20 @@ public class Sprint : MonoBehaviour
         bool wantsToSprint = false;
         leftController.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out wantsToSprint);
 
-        // Can only sprint if we have stamina
         if (wantsToSprint && currentStamina > 0)
         {
             moveProvider.moveSpeed = sprintSpeed;
             currentStamina -= staminaDrainRate * Time.deltaTime;
             currentStamina = Mathf.Max(currentStamina, 0);
+            timeSinceLastSprint = 0f;
         }
         else
         {
             moveProvider.moveSpeed = normalSpeed;
+            timeSinceLastSprint += Time.deltaTime;
 
-            // Recharge stamina when not sprinting
-            if (currentStamina < maxStamina)
+            // Only recharge after delay
+            if (timeSinceLastSprint >= rechargeDelay && currentStamina < maxStamina)
             {
                 currentStamina += staminaRechargeRate * Time.deltaTime;
                 currentStamina = Mathf.Min(currentStamina, maxStamina);

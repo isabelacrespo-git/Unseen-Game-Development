@@ -19,8 +19,8 @@ public class CodeDoor : MonoBehaviour
     {
         if (isUnlocked)
         {
-            doorTransform.localPosition = Vector3.Lerp(
-                doorTransform.localPosition,
+            doorTransform.position = Vector3.Lerp(
+                doorTransform.position,
                 openPosition,
                 Time.deltaTime * openSpeed
             );

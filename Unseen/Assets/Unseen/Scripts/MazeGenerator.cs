@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
+using Unity.AI.Navigation;
 
 public class MazeGenerator : MonoBehaviour
 {
@@ -10,6 +11,15 @@ public class MazeGenerator : MonoBehaviour
 
     //position our algorithm will start from
     public int startX, startY;
+    
+    [Header("NavMesh Settings")]
+    [Tooltip("Reference to the NavMeshSurface component")]
+    public NavMeshSurface navMeshSurface;
+    [Tooltip("Layer for walkable floors")]
+    public LayerMask floorLayer;
+    [Tooltip("Layer for walls (obstacles)")]
+    public LayerMask wallLayer;
+    
     //an array of maze cells representing the maze grid
     MazeCell[,] maze;
 
@@ -31,6 +41,38 @@ public class MazeGenerator : MonoBehaviour
         CarvePath(startX, startY);
         return maze;
     }
+    
+    // Call this after maze generation is complete
+    public void OnMazeGenerationComplete()
+    {
+        StartCoroutine(BakeNavMeshDelayed());
+    }
+    
+    IEnumerator BakeNavMeshDelayed()
+    {
+        // Wait for physics to register all colliders
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForFixedUpdate();
+        
+        if (navMeshSurface != null)
+        {
+            // Configure which layers to include in NavMesh baking
+            int combinedLayers = floorLayer | wallLayer;
+            navMeshSurface.layerMask = combinedLayers;
+            
+            // Collect all objects in the scene
+            navMeshSurface.collectObjects = CollectObjects.All;
+            
+            // Bake the NavMesh
+            navMeshSurface.BuildNavMesh();
+            Debug.Log("NavMesh baked successfully after maze generation!");
+        }
+        else
+        {
+            Debug.LogWarning("NavMeshSurface reference is missing in MazeGenerator.");
+        }
+    }
+    
     List<Direction> directions = new List<Direction> {
     Direction.Up, Direction.Down, Direction.Left, Direction.Right
     };
@@ -208,4 +250,3 @@ public class MazeCell
         topWall = leftWall = true;
     }
 }
-

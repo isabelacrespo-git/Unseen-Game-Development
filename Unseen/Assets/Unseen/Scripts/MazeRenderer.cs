@@ -10,9 +10,20 @@ public class MazeRenderer : MonoBehaviour
     //this is the physical size of our maze cells, getting this wrong will result in overlapping
     //or visible gaps between each cell
     public float CellSize = 1f;
+    
+    private bool hasGenerated = false;
 
     private void Start()
     {
+        if (hasGenerated)
+        {
+            Debug.LogWarning("MazeRenderer: Maze already generated! Skipping duplicate generation.");
+            return;
+        }
+        
+        hasGenerated = true;
+        Debug.Log($"MazeRenderer: Starting maze generation for {mazeGenerator.mazeWidth}x{mazeGenerator.mazeHeight}");
+        
         MazeCell[,] maze = mazeGenerator.GetMaze();
         for(int x = 0; x < mazeGenerator.mazeWidth; x++)
         {
@@ -37,5 +48,6 @@ public class MazeRenderer : MonoBehaviour
                 mazeCell.Init(top, bottom, right, left);
             }
         }
+        mazeGenerator.OnMazeGenerationComplete();
     }
 }

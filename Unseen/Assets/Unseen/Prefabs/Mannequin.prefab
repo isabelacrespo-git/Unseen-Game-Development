@@ -1482,7 +1482,7 @@ MonoBehaviour:
   requireLineOfSight: 1
   obstacleLayers:
     serializedVersion: 2
-    m_Bits: 448
+    m_Bits: 192
   playerCam: {fileID: 0}
   idleAnimationState: Idle
   runAnimationState: FastRun

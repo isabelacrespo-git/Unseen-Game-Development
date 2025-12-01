@@ -12,6 +12,7 @@ public class Flashlight : MonoBehaviour
     public AudioClip clickOffSound;
     
     private bool isOn = false;
+    public bool IsOn => isOn;
     private Material instanceMaterial; // Use instanced material
 
     void Start()

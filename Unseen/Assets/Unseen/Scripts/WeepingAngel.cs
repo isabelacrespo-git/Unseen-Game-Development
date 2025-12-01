@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using UnityEngine.XR.Interaction.Toolkit;
+using Unity.XR.CoreUtils;
 
 public class WeepingAngel : MonoBehaviour
 {
@@ -22,10 +24,14 @@ public class WeepingAngel : MonoBehaviour
     public float maxChaseDistance = 20f;
     [Tooltip("If the player gets this far away, angel will stop and idle")]
     public float stopChaseDistance = 25f;
+    [Tooltip("Maximum path distance (actual walking distance through maze)")]
+    public float maxPathDistance = 30f;
     [Tooltip("Check for obstacles between angel and player")]
     public bool requireLineOfSight = true;
     [Tooltip("Layers that block the angel's line of sight (walls, objects, etc.)")]
     public LayerMask obstacleLayers;
+    [Tooltip("Maximum ratio of path distance to straight-line distance (prevents chasing around corners)")]
+    public float maxPathDistanceRatio = 1.5f;
 
     [Header("VR Settings")]
     [Tooltip("Leave empty to auto-find the main camera (works for VR)")]
@@ -69,7 +75,6 @@ public class WeepingAngel : MonoBehaviour
     [Tooltip("Volume of the jumpscare sound")]
     [Range(0f, 1f)]
     public float jumpscareVolume = 1f;
-
     private Vector3 dest;
     private bool isBeingWatched = false;
     private bool hasCaughtPlayer = false;
@@ -78,18 +83,11 @@ public class WeepingAngel : MonoBehaviour
     private bool hasBeenActivated = false;
     private bool isMoving = false;
     private float footstepTimer = 0f;
+    private static bool playerGloballyCaptured = false;
 
     void Start()
     {
-        // Auto-find main camera if not assigned (works for VR headset camera)
-        if (playerCam == null)
-        {
-            playerCam = Camera.main;
-            if (playerCam == null)
-            {
-                Debug.LogError("WeepingAngel: No camera found! Make sure your XR camera has the 'MainCamera' tag.");
-            }
-        }
+        ResolvePlayerReferences();
 
         if (ai == null) ai = GetComponent<NavMeshAgent>();
 
@@ -119,6 +117,58 @@ public class WeepingAngel : MonoBehaviour
         if (footstepSounds == null || footstepSounds.Length == 0)
         {
             Debug.LogWarning("WeepingAngel: No footstep sounds assigned!");
+        }
+    }
+
+    void ResolvePlayerReferences()
+    {
+        // Auto-find main camera if not assigned (works for VR headset camera)
+        if (playerCam == null)
+        {
+            playerCam = Camera.main;
+            if (playerCam == null)
+            {
+                Debug.LogError("WeepingAngel: No camera found! Make sure your XR camera has the 'MainCamera' tag.");
+            }
+        }
+
+        // Auto-assign player transform if empty by trying common XR rig references
+        if (player == null)
+        {
+            XROrigin xrOrigin = null;
+#if UNITY_2023_1_OR_NEWER
+            xrOrigin = UnityEngine.Object.FindFirstObjectByType<XROrigin>();
+#else
+            xrOrigin = UnityEngine.Object.FindObjectOfType<XROrigin>();
+#endif
+            if (xrOrigin != null)
+            {
+                player = xrOrigin.transform;
+                if (playerCam == null && xrOrigin.Camera != null)
+                {
+                    playerCam = xrOrigin.Camera;
+                }
+            }
+        }
+
+        if (player == null)
+        {
+            // Fallback to classic Player tag or object name
+            GameObject playerObj = GameObject.FindWithTag("Player");
+            if (playerObj == null)
+            {
+                playerObj = GameObject.Find("XR Rig");
+            }
+
+            if (playerObj != null)
+            {
+                player = playerObj.transform;
+            }
+        }
+
+        if (player == null)
+        {
+            Debug.LogWarning("WeepingAngel: No player transform assigned. Please drag the XR Rig transform into the 'player' field.");
         }
     }
 
@@ -157,11 +207,25 @@ public class WeepingAngel : MonoBehaviour
         jumpscareAudioSource.playOnAwake = false;
         jumpscareAudioSource.spatialBlend = 0f; // 2D (global sound)
         jumpscareAudioSource.volume = jumpscareVolume;
+
     }
 
-    void Update()
+   void Update()
     {
         if (playerCam == null || hasCaughtPlayer) return;
+
+        // If another angel already triggered the jumpscare, ignore the player.
+        if (playerGloballyCaptured)
+        {
+            if (ai != null)
+            {
+                ai.speed = 0;
+                ai.isStopped = true;
+                ai.SetDestination(transform.position);
+            }
+            SetMoving(false);
+            return;
+        }
 
         // Check if angel is in player's view
         Plane[] planes = GeometryUtility.CalculateFrustumPlanes(playerCam);
@@ -169,7 +233,7 @@ public class WeepingAngel : MonoBehaviour
 
         float distance = Vector3.Distance(transform.position, player.position);
 
-        // Check line of sight to player
+        // Check line of sight to player FIRST (before any other checks)
         hasLineOfSight = CheckLineOfSight();
 
         // Check if angel should activate for the first time
@@ -196,7 +260,7 @@ public class WeepingAngel : MonoBehaviour
             isChasing = false;
         }
 
-        if (isBeingWatched)
+       if (isBeingWatched)
         {
             // Player is looking at the angel - FREEZE
             ai.speed = 0;
@@ -222,8 +286,8 @@ public class WeepingAngel : MonoBehaviour
             ai.SetDestination(dest);
             SetMoving(true); // Play footsteps
 
-            // Check if caught the player
-            if (distance <= catchDistance)
+            // NEW: Use NavMesh path distance instead of straight-line distance for catch check
+            if (ai.hasPath && ai.remainingDistance <= catchDistance && hasLineOfSight)
             {
                 CatchPlayer();
             }
@@ -301,21 +365,82 @@ public class WeepingAngel : MonoBehaviour
     {
         if (!requireLineOfSight) return true;
 
-        Vector3 directionToPlayer = player.position - transform.position;
-        float distanceToPlayer = directionToPlayer.magnitude;
+        Vector3 angelEye = transform.position + Vector3.up * 1.5f;
+        Vector3 playerEye = player.position + Vector3.up * 1.4f;
+        float distanceToPlayer = Vector3.Distance(angelEye, playerEye);
 
-        // Raycast from angel to player
-        if (Physics.Raycast(transform.position + Vector3.up * 1.5f, directionToPlayer.normalized, out RaycastHit hit, distanceToPlayer, obstacleLayers))
+        // CRITICAL: Raycast from angel to player to check for walls
+        // This must be checked FIRST before any distance calculations
+        if (Physics.Raycast(angelEye, (playerEye - angelEye).normalized, out RaycastHit hit, distanceToPlayer, obstacleLayers, QueryTriggerInteraction.Ignore))
         {
-            // Hit something before reaching player
+            Debug.Log($"WeepingAngel: (angel->player) BLOCKED by wall: {hit.collider.name} at distance {hit.distance:F2}");
+            return false; // Wall detected - no line of sight
+        }
+
+        // Raycast from player's camera to angel to ensure the player actually has a clear view
+        if (playerCam != null)
+        {
+            Vector3 camPos = playerCam.transform.position;
+            float camDist = Vector3.Distance(camPos, angelEye);
+            if (Physics.Raycast(camPos, (angelEye - camPos).normalized, out RaycastHit camHit, camDist, obstacleLayers, QueryTriggerInteraction.Ignore))
+            {
+                Debug.Log($"WeepingAngel: (cam->angel) blocked by wall: {camHit.collider.name}");
+                return false; // Wall blocks camera view
+            }
+
+            // Additional check: ensure first hit from camera is the angel or nothing
+            if (Physics.Raycast(camPos, (angelEye - camPos).normalized, out RaycastHit anyHit, camDist, ~0, QueryTriggerInteraction.Ignore))
+            {
+                GameObject hitObj = anyHit.collider.gameObject;
+                if (hitObj != gameObject && !hitObj.transform.IsChildOf(transform) && hitObj != player.gameObject)
+                {
+                    Debug.Log($"WeepingAngel: (cam->angel) occluded by {hitObj.name}");
+                    return false;
+                }
+            }
+        }
+
+        // NavMesh path validation (ensure agent can actually walk to the player)
+        NavMeshPath path = new NavMeshPath();
+        if (!ai.CalculatePath(player.position, path) || path.status != NavMeshPathStatus.PathComplete)
+        {
+            Debug.Log($"WeepingAngel: NavMesh path invalid or incomplete (status={path.status})");
             return false;
         }
+
+        // Compute actual path distance to avoid chasing through long detours
+        float pathDistance = 0f;
+        for (int i = 0; i < path.corners.Length - 1; i++)
+            pathDistance += Vector3.Distance(path.corners[i], path.corners[i + 1]);
+
+        // Check if path is too convoluted (indicates corners/obstacles)
+        float pathRatio = pathDistance / distanceToPlayer;
+        Debug.Log($"WeepingAngel: pathDistance={pathDistance:F2}, straightLine={distanceToPlayer:F2}, ratio={pathRatio:F2}, maxRatio={maxPathDistanceRatio}");
+        
+        if (pathDistance > maxPathDistance) 
+        {
+            Debug.Log("WeepingAngel: Path too long - not chasing");
+            return false;
+        }
+
+        if (pathRatio > maxPathDistanceRatio)
+        {
+            Debug.Log($"WeepingAngel: Path too convoluted (ratio {pathRatio:F2} > {maxPathDistanceRatio}) - player likely behind corner");
+            return false;
+        }
+
         return true;
     }
 
     void CatchPlayer()
     {
+        if (playerGloballyCaptured)
+        {
+            return;
+        }
+
         hasCaughtPlayer = true;
+        playerGloballyCaptured = true;
         
         // Stop the angel
         ai.speed = 0;
@@ -368,9 +493,10 @@ public class WeepingAngel : MonoBehaviour
     }
 
     // Debug visualization
+
     void OnDrawGizmos()
     {
-       if (Application.isPlaying && player != null)
+        if (Application.isPlaying && player != null)
         {
             // Draw line color based on state
             if (isBeingWatched)
@@ -393,11 +519,22 @@ public class WeepingAngel : MonoBehaviour
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(transform.position, stopChaseDistance);
 
-            // Draw line of sight
+            // Draw line of sight raycast
             if (requireLineOfSight)
             {
                 Gizmos.color = hasLineOfSight ? Color.cyan : Color.magenta;
                 Gizmos.DrawRay(transform.position + Vector3.up * 1f, (player.position - transform.position).normalized * Vector3.Distance(transform.position, player.position));
+            }
+
+            // Draw actual NavMesh path
+            if (ai != null && ai.hasPath)
+            {
+                Gizmos.color = Color.blue;
+                Vector3[] corners = ai.path.corners;
+                for (int i = 0; i < corners.Length - 1; i++)
+                {
+                    Gizmos.DrawLine(corners[i], corners[i + 1]);
+                }
             }
 
             // Draw footstep audio range

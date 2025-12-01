@@ -32,12 +32,18 @@ public class Sprint : MonoBehaviour
         bool wantsToSprint = false;
         leftController.TryGetFeatureValue(CommonUsages.primary2DAxisClick, out wantsToSprint);
 
+        if (wantsToSprint)
+        {
+            Debug.Log("Joystick click detected! Stamina: " + currentStamina);
+        }
+
         if (wantsToSprint && currentStamina > 0)
         {
             moveProvider.moveSpeed = sprintSpeed;
             currentStamina -= staminaDrainRate * Time.deltaTime;
             currentStamina = Mathf.Max(currentStamina, 0);
             timeSinceLastSprint = 0f;
+            Debug.Log("Sprinting at speed: " + sprintSpeed);
         }
         else
         {

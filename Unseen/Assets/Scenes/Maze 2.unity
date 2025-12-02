@@ -335,7 +335,7 @@ PrefabInstance:
     - target: {fileID: 2485544944957432105, guid: bfdd52d6503ebf54784452cfffa77220,
         type: 3}
       propertyPath: m_Name
-      value: Directional Light
+      value: Directional Light Party
       objectReference: {fileID: 0}
     - target: {fileID: 2835600217541109554, guid: bfdd52d6503ebf54784452cfffa77220,
         type: 3}

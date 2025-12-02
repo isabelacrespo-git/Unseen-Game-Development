@@ -20,6 +20,14 @@ public class MazeRenderer : MonoBehaviour
     [SerializeField, Min(1)] int maxSpawnAttemptsPerEntity = 10;
     [Header("Player Reference")]
     [SerializeField] Transform playerTransform;
+    [Header("Equipment Spawning")]
+    [SerializeField] GameObject flashlightPrefab;
+    [SerializeField] Vector3 flashlightSpawnOffset = new Vector3(0f, 0f, 0.8f);
+    [SerializeField] GameObject tablePrefab;
+    [Tooltip("Forward distance from the player to spawn the table, along their facing direction.")]
+    [SerializeField] float tableForwardDistance = 1.2f;
+    [Tooltip("Vertical offset when placing the table.")]
+    [SerializeField] float tableHeightOffset = 0f;
 
     private bool hasGenerated = false;
     private readonly List<Vector3> walkableCells = new List<Vector3>();
@@ -87,6 +95,8 @@ public class MazeRenderer : MonoBehaviour
         {
             playerTransform = ResolvePlayerTransform();
         }
+
+        SpawnEquipment();
 
         if (entitySpawnDefinitions == null || entitySpawnDefinitions.Count == 0)
         {
@@ -220,5 +230,100 @@ public class MazeRenderer : MonoBehaviour
 
         Camera cam = Camera.main;
         return cam != null ? cam.transform : null;
+    }
+
+    void SpawnEquipment()
+    {
+        if (playerTransform == null) return;
+
+        Transform tableTransform = null;
+
+        if (tablePrefab != null)
+        {
+            Vector3 forwardSpawn = playerTransform.position + playerTransform.forward * tableForwardDistance;
+            tableTransform = SpawnTableAgainstWall(forwardSpawn);
+        }
+
+        if (flashlightPrefab != null)
+        {
+            if (tableTransform != null)
+            {
+                Vector3 top = tableTransform.position;
+                Collider tableCollider = tableTransform.GetComponent<Collider>();
+                if (tableCollider != null)
+                {
+                    top.y = tableCollider.bounds.max.y;
+                }
+                Vector3 spawnPos = top + tableTransform.right * flashlightSpawnOffset.x
+                    + tableTransform.up * (flashlightSpawnOffset.y + 0.02f)
+                    + tableTransform.forward * flashlightSpawnOffset.z;
+
+                Quaternion spawnRot = Quaternion.LookRotation(tableTransform.forward, Vector3.up);
+                Instantiate(flashlightPrefab, spawnPos, spawnRot);
+            }
+            else
+            {
+                SpawnPrefabNearPlayer(flashlightPrefab, flashlightSpawnOffset, 0.05f);
+            }
+        }
+    }
+
+    Transform SpawnPrefabNearPlayer(GameObject prefab, Vector3 offset, float liftHeight)
+    {
+        if (prefab == null || playerTransform == null) return null;
+
+        Vector3 spawnPos = playerTransform.position
+            + playerTransform.right * offset.x
+            + Vector3.up * offset.y
+            + playerTransform.forward * offset.z;
+
+        if (Physics.Raycast(spawnPos + Vector3.up, Vector3.down, out RaycastHit hit, 5f))
+        {
+            spawnPos = hit.point + Vector3.up * liftHeight;
+        }
+
+        return SpawnPrefabAtPosition(prefab, spawnPos, liftHeight, playerTransform.forward, Vector3.zero);
+    }
+
+    Transform SpawnTableAgainstWall(Vector3 fallbackPosition)
+    {
+        if (tablePrefab == null) return null;
+
+        Vector3 direction = playerTransform.forward.normalized;
+        Vector3 origin = playerTransform.position + Vector3.up * 0.5f;
+        float rayDistance = tableForwardDistance + 2f;
+        Vector3 spawnPos = fallbackPosition;
+
+        RaycastHit hit;
+        if (Physics.Raycast(origin, direction, out hit, rayDistance, ~0, QueryTriggerInteraction.Ignore))
+        {
+            float tableDepth = 0.5f;
+            Collider prefabCollider = tablePrefab.GetComponentInChildren<Collider>();
+            if (prefabCollider != null)
+            {
+                tableDepth = Mathf.Max(prefabCollider.bounds.extents.x, prefabCollider.bounds.extents.z);
+            }
+
+            spawnPos = hit.point - direction * (tableDepth + 0.05f);
+        }
+
+        return SpawnPrefabAtPosition(tablePrefab, spawnPos, tableHeightOffset, direction, new Vector3(-90f, 0f, 0f));
+    }
+
+    Transform SpawnPrefabAtPosition(GameObject prefab, Vector3 position, float liftHeight, Vector3 forward, Vector3 extraEuler)
+    {
+        if (prefab == null) return null;
+
+        Vector3 spawnPos = position;
+        if (Physics.Raycast(spawnPos + Vector3.up, Vector3.down, out RaycastHit hit, 5f))
+        {
+            spawnPos = hit.point + Vector3.up * liftHeight;
+        }
+
+        Vector3 flatForward = new Vector3(forward.x, 0f, forward.z).normalized;
+        Quaternion spawnRot = Quaternion.LookRotation(flatForward, Vector3.up) * Quaternion.Euler(extraEuler);
+        Transform instance = Instantiate(prefab, spawnPos, spawnRot).transform;
+        instance.localScale = prefab.transform.localScale;
+        return instance;
     }
 }

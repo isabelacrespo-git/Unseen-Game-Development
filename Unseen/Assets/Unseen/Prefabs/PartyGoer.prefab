@@ -333,7 +333,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PartygoerEncounter
   balloonRoot: {fileID: 8922537928977102873}
   maxScale: 2.5
-  timeToFull: 10
+  timeToFull: 15
   growthCurve:
     serializedVersion: 2
     m_Curve:
@@ -364,7 +364,6 @@ MonoBehaviour:
   spawnStinger: {fileID: 8300000, guid: c1f71c79fc6be87438501d3f29bffe71, type: 3}
   balloonPopSound: {fileID: 8300000, guid: d2e1f4ec86b92164c9239ecdb7513b8c, type: 3}
   vanishSound: {fileID: 8300000, guid: d34ab967f8fa6bb4fbd62b40694f672e, type: 3}
-  balloonGrowthLoop: {fileID: 8300000, guid: fd7df164349b7ab4592ecdaa75f09af1, type: 3}
   enableDebugLogs: 0
   flashlightHitIndicator: {fileID: 0}
 --- !u!65 &3053084543539707403
@@ -409,8 +408,9 @@ MonoBehaviour:
   jumpscareCamera: {fileID: 3599600175972289920}
   jumpscareAnimator: {fileID: 1289127723486934853}
   jumpscareTriggerName: jumpscare
-  loadGameOverOnFinish: 1
-  gameOverSceneName: GameOver
+  triggerDeathSequence: 1
+  deathSceneName: DeathScene
+  respawnManager: {fileID: 0}
 --- !u!82 &671013468639429340
 AudioSource:
   m_ObjectHideFlags: 0

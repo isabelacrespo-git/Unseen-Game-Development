@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Box
   - Trail
+  - Red
   layers:
   - Default
   - TransparentFX
@@ -13,10 +14,17 @@ TagManager:
   - 
   - Water
   - UI
+<<<<<<< HEAD
   - Wall
   - Floor
   - PartyGoer
   - Ceiling
+=======
+  - leverIgnore
+  - 
+  - 
+  - 
+>>>>>>> main-nick
   - 
   - 
   - 

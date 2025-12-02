@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class CodeDoor : MonoBehaviour
 {
@@ -6,13 +7,15 @@ public class CodeDoor : MonoBehaviour
     public Transform doorTransform;
     public Vector3 openPosition;
     public float openSpeed = 2f;
+    public string sceneToLoad = "NextLevel";
+    public float loadDelay = 2f;
 
     private bool isUnlocked = false;
     private Vector3 closedPosition;
 
     void Start()
     {
-        closedPosition = doorTransform.localPosition;
+        closedPosition = doorTransform.position;
     }
 
     void Update()
@@ -43,7 +46,14 @@ public class CodeDoor : MonoBehaviour
         if (allCorrect && !isUnlocked)
         {
             isUnlocked = true;
-            Debug.Log("Code correct! Door unlocked!");
+            Debug.Log("Code correct! Hatch opening...");
+            doorTransform.gameObject.SetActive(false); // Plane disappears instantly
+            Invoke("LoadNextScene", loadDelay);
         }
+    }
+
+    void LoadNextScene()
+    {
+        SceneManager.LoadScene(sceneToLoad);
     }
 }

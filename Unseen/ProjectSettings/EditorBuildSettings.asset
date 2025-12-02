@@ -6,12 +6,20 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Maze 1.unity
     path: Assets/Unseen/Scenes/TitleScene.unity
     guid: f54fe66f0ed949a46bd857b100821bea
   - enabled: 1
     path: Assets/Scenes/mainScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/PuzzleRoomPipes.unity
+    guid: fc0f7e7400394ff46bc0bbaff2809801
+  - enabled: 1
+    path: Assets/Scenes/Maze 2.unity
+    guid: 431c711a0fa2584438576f494b894c79
+  - enabled: 1
+    path: Assets/Unseen/Scenes/partyScene.unity
+    guid: ec835819c35045647849abe8477503b4
   - enabled: 1
     path: Assets/Unseen/Scenes/DeathScene.unity
     guid: 46bd47a372d53594fba7c23b9a800243

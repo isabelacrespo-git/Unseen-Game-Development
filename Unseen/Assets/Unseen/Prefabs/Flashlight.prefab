@@ -63,8 +63,8 @@ Transform:
   m_GameObject: {fileID: 7428238869010191619}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0.804, y: 0.597, z: -6.636}
-  m_LocalScale: {x: 50, y: 50, z: 50}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 15, y: 15, z: 15}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4084992736877075566}
@@ -154,7 +154,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
 --- !u!114 &8250869689157023585
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -452,6 +452,7 @@ GameObject:
   - component: {fileID: 4084992736877075566}
   - component: {fileID: 2094816909485947893}
   - component: {fileID: 6994149139676790134}
+  - component: {fileID: 4087089526352839403}
   m_Layer: 0
   m_Name: Spot Light
   m_TagString: Untagged
@@ -568,3 +569,29 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!114 &4087089526352839403
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7667686524612498674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8cb466ad92d07442aae026d62ac130c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FlashlightRaycaster
+  partygoerMask:
+    serializedVersion: 2
+    m_Bits: 256
+  maxDistance: 30
+  flashlightOn: 1
+  flashlightSource: {fileID: 1053918439215152502}
+  enableDebugLogs: 1
+  drawDebugRay: 1
+  missColor: {r: 0, g: 1, b: 1, a: 1}
+  hitColor: {r: 0, g: 1, b: 0, a: 1}
+  hitFeedbackLight: {fileID: 2094816909485947893}
+  defaultLightColor: {r: 1, g: 1, b: 1, a: 1}
+  onTargetLightColor: {r: 1, g: 0, b: 0, a: 1}
+  lightLerpSpeed: 12

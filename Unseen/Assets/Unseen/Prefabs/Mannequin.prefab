@@ -1476,7 +1476,6 @@ MonoBehaviour:
   aiSpeed: 6
   catchDistance: 0.75
   jumpscareTime: 5
-  sceneAfterDeath: mainScene
   maxChaseDistance: 5
   stopChaseDistance: 7
   maxPathDistance: 12

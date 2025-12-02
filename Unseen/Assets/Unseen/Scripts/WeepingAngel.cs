@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
-using UnityEngine.SceneManagement;
 using UnityEngine.XR.Interaction.Toolkit;
 using Unity.XR.CoreUtils;
 
@@ -17,7 +16,6 @@ public class WeepingAngel : MonoBehaviour
     public float aiSpeed = 3.5f;
     public float catchDistance = 2f;
     public float jumpscareTime = 3f;
-    public string sceneAfterDeath = "GameOver";
 
     [Header("Chase Settings")]
     [Tooltip("Maximum distance the angel will chase the player")]
@@ -85,11 +83,17 @@ public class WeepingAngel : MonoBehaviour
     private float footstepTimer = 0f;
     private static bool playerGloballyCaptured = false;
 
+    public static void ResetGlobalCaptureFlag()
+    {
+        playerGloballyCaptured = false;
+    }
+
     void Start()
     {
         ResolvePlayerReferences();
 
         if (ai == null) ai = GetComponent<NavMeshAgent>();
+        ValidateNavMeshPlacement();
 
         // Make sure jumpscare camera is disabled at start
         if (jumpscareCam != null)
@@ -213,6 +217,7 @@ public class WeepingAngel : MonoBehaviour
    void Update()
     {
         if (playerCam == null || hasCaughtPlayer) return;
+        if (!EnsureNavMeshReady()) return;
 
         // If another angel already triggered the jumpscare, ignore the player.
         if (playerGloballyCaptured)
@@ -220,8 +225,11 @@ public class WeepingAngel : MonoBehaviour
             if (ai != null)
             {
                 ai.speed = 0;
-                ai.isStopped = true;
-                ai.SetDestination(transform.position);
+                if (ai.isOnNavMesh)
+                {
+                    ai.isStopped = true;
+                    ai.SetDestination(transform.position);
+                }
             }
             SetMoving(false);
             return;
@@ -261,15 +269,16 @@ public class WeepingAngel : MonoBehaviour
         }
 
        if (isBeingWatched)
-        {
-            // Player is looking at the angel - FREEZE
-            ai.speed = 0;
-            if (aiAnim != null) aiAnim.speed = 0;
-            ai.SetDestination(transform.position);
-            SetMoving(false); // Stop footsteps
-        }
-        else if (isChasing)
-        {
+       {
+           // Player is looking at the angel - FREEZE
+           ai.speed = 0;
+           if (aiAnim != null) aiAnim.speed = 0;
+            if (ai.isOnNavMesh)
+                ai.SetDestination(transform.position);
+           SetMoving(false); // Stop footsteps
+       }
+       else if (isChasing)
+       {
             // Player is NOT looking and angel is chasing - MOVE
             ai.speed = aiSpeed;
             if (aiAnim != null)
@@ -281,25 +290,27 @@ public class WeepingAngel : MonoBehaviour
                 {
                     aiAnim.Play(runAnimationState);
                 }
-            }
-            dest = player.position;
-            ai.SetDestination(dest);
-            SetMoving(true); // Play footsteps
+           }
+           dest = player.position;
+            if (ai.isOnNavMesh)
+                ai.SetDestination(dest);
+           SetMoving(true); // Play footsteps
 
-            // NEW: Use NavMesh path distance instead of straight-line distance for catch check
-            if (ai.hasPath && ai.remainingDistance <= catchDistance && hasLineOfSight)
-            {
+           // NEW: Use NavMesh path distance instead of straight-line distance for catch check
+           if (ai.hasPath && ai.remainingDistance <= catchDistance && hasLineOfSight)
+           {
                 CatchPlayer();
             }
         }
         else
-        {
-            // Not being watched but not chasing - IDLE
-            ai.speed = 0;
-            if (aiAnim != null) aiAnim.speed = 0;
-            ai.SetDestination(transform.position);
-            SetMoving(false); // Stop footsteps
-        }
+       {
+           // Not being watched but not chasing - IDLE
+           ai.speed = 0;
+           if (aiAnim != null) aiAnim.speed = 0;
+            if (ai.isOnNavMesh)
+                ai.SetDestination(transform.position);
+           SetMoving(false); // Stop footsteps
+       }
 
         // Handle footstep timer (only if not using animation events)
         if (!useAnimationEvents && isMoving)
@@ -364,6 +375,7 @@ public class WeepingAngel : MonoBehaviour
     bool CheckLineOfSight()
     {
         if (!requireLineOfSight) return true;
+        if (!EnsureNavMeshReady()) return false;
 
         Vector3 angelEye = transform.position + Vector3.up * 1.5f;
         Vector3 playerEye = player.position + Vector3.up * 1.4f;
@@ -442,54 +454,54 @@ public class WeepingAngel : MonoBehaviour
         hasCaughtPlayer = true;
         playerGloballyCaptured = true;
         
-        // Stop the angel
-        ai.speed = 0;
-        ai.isStopped = true;
-        SetMoving(false); // Stop footsteps
+        if (ai != null)
+        {
+            ai.speed = 0;
+            if (ai.isOnNavMesh)
+                ai.isStopped = true;
+        }
+        SetMoving(false);
         
-        // Play jumpscare sound
         if (jumpscareAudioSource != null && jumpscareSound != null)
         {
             jumpscareAudioSource.PlayOneShot(jumpscareSound);
-            Debug.Log("Jumpscare sound played!");
         }
         
-        // Disable player camera/controls
         if (playerCam != null)
         {
             playerCam.gameObject.SetActive(false);
         }
         
-        // Disable player GameObject (XR Rig)
         if (player != null)
         {
             player.gameObject.SetActive(false);
         }
         
-        // Activate jumpscare camera FIRST
         if (jumpscareCam != null)
         {
             jumpscareCam.gameObject.SetActive(true);
-            Debug.Log("Jumpscare camera activated!");
         }
         
-        // THEN trigger animation
         if (aiAnim != null)
         {
             aiAnim.SetTrigger("jumpscare");
-            Debug.Log("Jumpscare animation triggered!");
         }
         
-        // Start death sequence
-        StartCoroutine(KillPlayer());
+        StartCoroutine(HandleDeathAfterJumpscare());
     }
 
-    IEnumerator KillPlayer()
+    IEnumerator HandleDeathAfterJumpscare()
     {
         yield return new WaitForSeconds(jumpscareTime);
-        
-        Debug.Log($"Loading scene: {sceneAfterDeath}");
-        SceneManager.LoadScene(sceneAfterDeath);
+        RespawnManager manager = FindObjectOfType<RespawnManager>();
+        if (manager != null)
+        {
+            manager.RespawnPlayer();
+        }
+        else
+        {
+            Debug.LogError("WeepingAngel: RespawnManager not found. Unable to transition to death scene.");
+        }
     }
 
     // Debug visualization
@@ -543,6 +555,30 @@ public class WeepingAngel : MonoBehaviour
                 Gizmos.color = new Color(1f, 0.5f, 0f, 0.3f);
                 Gizmos.DrawWireSphere(transform.position, maxFootstepDistance);
             }
+        }
+    }
+
+    bool EnsureNavMeshReady()
+    {
+        if (ai == null) return false;
+        if (ai.isOnNavMesh) return true;
+        ValidateNavMeshPlacement();
+        return ai.isOnNavMesh;
+    }
+
+    void ValidateNavMeshPlacement()
+    {
+        if (ai == null) return;
+        if (ai.isOnNavMesh) return;
+
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(transform.position, out hit, 2f, NavMesh.AllAreas))
+        {
+            ai.Warp(hit.position);
+        }
+        else
+        {
+            Debug.LogWarning($"{name}: Unable to find NavMesh below current position.");
         }
     }
 }

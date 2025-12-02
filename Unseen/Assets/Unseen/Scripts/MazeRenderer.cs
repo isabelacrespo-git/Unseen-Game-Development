@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 
 public class MazeRenderer : MonoBehaviour
@@ -17,6 +18,8 @@ public class MazeRenderer : MonoBehaviour
     [SerializeField] LayerMask blockedSpawnLayers;
     [SerializeField, Min(0f)] float spawnCollisionCheckRadius = 0.35f;
     [SerializeField, Min(1)] int maxSpawnAttemptsPerEntity = 10;
+    [Header("Player Reference")]
+    [SerializeField] Transform playerTransform;
 
     private bool hasGenerated = false;
     private readonly List<Vector3> walkableCells = new List<Vector3>();
@@ -30,6 +33,10 @@ public class MazeRenderer : MonoBehaviour
         public float yOffset = 0f;
         [Tooltip("If true, apply a random Y rotation so monsters don't all face the same way.")]
         public bool randomizeYRotation = true;
+        [Tooltip("Minimum spacing between spawned instances of this prefab.")]
+        [Min(0f)] public float minSpacing = 0f;
+        [Tooltip("Minimum distance away from the player this entity can spawn.")]
+        [Min(0f)] public float minDistanceFromPlayer = 0f;
     }
 
     private void Start()
@@ -76,6 +83,11 @@ public class MazeRenderer : MonoBehaviour
 
     void SpawnEntities()
     {
+        if (playerTransform == null)
+        {
+            playerTransform = ResolvePlayerTransform();
+        }
+
         if (entitySpawnDefinitions == null || entitySpawnDefinitions.Count == 0)
         {
             return;
@@ -97,22 +109,26 @@ public class MazeRenderer : MonoBehaviour
             }
 
             int placedCount = 0;
+            List<Vector3> placedPositions = new List<Vector3>();
 
             while (placedCount < definition.amount)
             {
-                if (!TrySpawnEntity(definition, availableCells))
+                if (!TrySpawnEntity(definition, availableCells, placedPositions, out Vector3 placedPosition))
                 {
                     Debug.LogWarning($"MazeRenderer: Unable to place all instances of {definition.prefab.name}. Placed {placedCount}/{definition.amount}.");
                     break;
                 }
 
+                placedPositions.Add(placedPosition);
                 placedCount++;
             }
         }
     }
 
-    bool TrySpawnEntity(EntitySpawnDefinition definition, List<Vector3> availableCells)
+    bool TrySpawnEntity(EntitySpawnDefinition definition, List<Vector3> availableCells, List<Vector3> placedPositions, out Vector3 placedPosition)
     {
+        placedPosition = Vector3.zero;
+
         if (availableCells.Count == 0)
         {
             return false;
@@ -132,11 +148,24 @@ public class MazeRenderer : MonoBehaviour
                 continue;
             }
 
+            if (!HasRequiredSpacing(spawnPos, placedPositions, definition.minSpacing))
+            {
+                attempts++;
+                continue;
+            }
+
+            if (!MeetsPlayerDistance(spawnPos, definition.minDistanceFromPlayer))
+            {
+                attempts++;
+                continue;
+            }
+
             Quaternion rotation = definition.randomizeYRotation
                 ? Quaternion.Euler(0f, Random.Range(0f, 360f), 0f)
                 : definition.prefab.transform.rotation;
 
             Instantiate(definition.prefab, spawnPos, rotation, entityParent);
+            placedPosition = spawnPos;
             return true;
         }
 
@@ -151,5 +180,45 @@ public class MazeRenderer : MonoBehaviour
         }
 
         return Physics.CheckSphere(position, spawnCollisionCheckRadius, blockedSpawnLayers, QueryTriggerInteraction.Ignore);
+    }
+
+    bool HasRequiredSpacing(Vector3 candidate, List<Vector3> placedPositions, float minSpacing)
+    {
+        if (minSpacing <= 0f || placedPositions == null || placedPositions.Count == 0)
+            return true;
+
+        float minSpacingSqr = minSpacing * minSpacing;
+        foreach (var pos in placedPositions)
+        {
+            if ((candidate - pos).sqrMagnitude < minSpacingSqr)
+                return false;
+        }
+
+        return true;
+    }
+
+    bool MeetsPlayerDistance(Vector3 spawnPos, float minDistance)
+    {
+        if (minDistance <= 0f || playerTransform == null)
+            return true;
+
+        Vector3 playerPos = playerTransform.position;
+        Vector3 spawnFlat = new Vector3(spawnPos.x, 0f, spawnPos.z);
+        Vector3 playerFlat = new Vector3(playerPos.x, 0f, playerPos.z);
+        return Vector3.SqrMagnitude(spawnFlat - playerFlat) >= minDistance * minDistance;
+    }
+
+    Transform ResolvePlayerTransform()
+    {
+        XROrigin xrOrigin = FindObjectOfType<XROrigin>();
+        if (xrOrigin != null)
+            return xrOrigin.transform;
+
+        GameObject taggedPlayer = GameObject.FindWithTag("Player");
+        if (taggedPlayer != null)
+            return taggedPlayer.transform;
+
+        Camera cam = Camera.main;
+        return cam != null ? cam.transform : null;
     }
 }

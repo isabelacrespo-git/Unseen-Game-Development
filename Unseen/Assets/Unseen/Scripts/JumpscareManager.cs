@@ -23,11 +23,14 @@ public class JumpscareManager : MonoBehaviour
     public string jumpscareTriggerName = "jumpscare";
 
     [Header("Game Over")]
-    public bool loadGameOverOnFinish = true;
-    public string gameOverSceneName = "GameOver";
+    public bool triggerDeathSequence = true;
+    public string deathSceneName = "DeathScene";
+    public RespawnManager respawnManager;
 
     List<Light> _sceneLights = new List<Light>();
     List<bool> _previousLightStates = new List<bool>();
+
+    bool _isActive;
 
     void Awake()
     {
@@ -37,11 +40,14 @@ public class JumpscareManager : MonoBehaviour
 
     public void TriggerJumpscare(GameObject entity, float preBlackoutDelay = 0f)
     {
+        if (_isActive) return;
         StartCoroutine(JumpscareRoutine(entity, preBlackoutDelay));
     }
 
     IEnumerator JumpscareRoutine(GameObject entity, float preBlackoutDelay)
     {
+        _isActive = true;
+
         if (preBlackoutDelay > 0f)
             yield return new WaitForSeconds(preBlackoutDelay);
 
@@ -152,16 +158,12 @@ public class JumpscareManager : MonoBehaviour
         // let jumpscare play out
         yield return new WaitForSeconds(postJumpscareDuration);
 
-        if (loadGameOverOnFinish && !string.IsNullOrEmpty(gameOverSceneName))
+        if (triggerDeathSequence)
         {
-            if (blackoutSource != null)
-            {
-                blackoutSource.Stop();
-                Destroy(blackoutAudioObject);
-            }
+            yield return StartCoroutine(TriggerDeathFlow());
             if (entity != null)
                 Destroy(entity);
-            SceneManager.LoadScene(gameOverSceneName);
+            _isActive = false;
             yield break;
         }
 
@@ -198,6 +200,29 @@ public class JumpscareManager : MonoBehaviour
             cam.enabled = playerCameraEnabled;
         }
 
+        _isActive = false;
+    }
+
+    IEnumerator TriggerDeathFlow()
+    {
+        if (respawnManager == null)
+            respawnManager = FindObjectOfType<RespawnManager>();
+
+        if (respawnManager != null)
+        {
+            respawnManager.RespawnPlayer();
+            yield break;
+        }
+
+        if (!string.IsNullOrEmpty(deathSceneName))
+        {
+            SceneManager.LoadScene(deathSceneName);
+        }
+        else
+        {
+            Debug.LogError("JumpscareManager: No RespawnManager or death scene configured.");
+        }
         yield break;
     }
+
 }

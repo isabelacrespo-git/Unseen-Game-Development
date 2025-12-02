@@ -1,55 +1,125 @@
-using Unity.XR.CoreUtils;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.SceneManagement;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
 
 public class RespawnManager : MonoBehaviour
 {
+    public static RespawnManager Instance { get; private set; }
+
     [Header("References")]
-    public Transform playerCamera;       // Assign Main Camera here
-    public Transform respawnPoint;       // Assign your SpawnPoint
-    private XROrigin xrOrigin;
+    public Transform playerCamera;
+    public ScreenFader screenFader;
+    public string deathSceneName = "DeathScene";
 
-    [Header("Optional Effects")]
-    public AudioClip deathSound;
-    public AudioClip respawnSound;
-    public float respawnDelay = 1.5f;
+    [Header("Timing")]
+    public float fadeDuration = 1f;
+    public float blackHoldDuration = 0.5f;
 
-    private AudioSource audioSource;
-    private bool isRespawning = false;
+    [Header("Audio")]
+    public AudioClip deathSceneIntroSound;
 
-    void Start()
+    AudioSource audioSource;
+    bool isProcessing;
+    bool movementLocked;
+
+    void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+        SceneManager.sceneLoaded += OnSceneLoaded;
+
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
             audioSource = gameObject.AddComponent<AudioSource>();
+    }
 
-        xrOrigin = FindObjectOfType<XROrigin>();
+    void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name != deathSceneName)
+        {
+            WeepingAngel.ResetGlobalCaptureFlag();
+        }
+
+        if (movementLocked && scene.name != deathSceneName)
+        {
+            ToggleMovement(true);
+            movementLocked = false;
+        }
     }
 
     public void RespawnPlayer()
     {
-        if (isRespawning) return;
-        StartCoroutine(RespawnRoutine());
+        if (isProcessing) return;
+        LockMovement();
+        StartCoroutine(LoadDeathSceneRoutine());
     }
 
-    private System.Collections.IEnumerator RespawnRoutine()
+    void LockMovement()
     {
-        isRespawning = true;
+        if (movementLocked) return;
+        ToggleMovement(false);
+        movementLocked = true;
+    }
 
-        if (deathSound != null)
-            audioSource.PlayOneShot(deathSound);
-
-        yield return new WaitForSeconds(respawnDelay);
-
-        if (xrOrigin != null && respawnPoint != null)
+    void ToggleMovement(bool enable)
+    {
+        foreach (var moveProvider in FindObjectsOfType<ContinuousMoveProvider>(true))
         {
-            xrOrigin.MoveCameraToWorldLocation(respawnPoint.position);
-            xrOrigin.transform.rotation = respawnPoint.rotation;
+            if (moveProvider != null)
+                moveProvider.enabled = enable;
         }
 
-        if (respawnSound != null)
-            audioSource.PlayOneShot(respawnSound);
+        foreach (var sprint in FindObjectsOfType<Sprint>(true))
+        {
+            if (sprint != null)
+                sprint.enabled = enable;
+        }
+    }
 
-        isRespawning = false;
+    IEnumerator LoadDeathSceneRoutine()
+    {
+        isProcessing = true;
+        yield return StartCoroutine(FadeToScene(deathSceneName));
+        isProcessing = false;
+    }
+
+    IEnumerator FadeToScene(string sceneName)
+    {
+        ScreenFader fader = screenFader != null ? screenFader : ScreenFader.Instance;
+        if (fader == null)
+        {
+            SceneManager.LoadScene(sceneName);
+            yield break;
+        }
+
+        yield return StartCoroutine(fader.FadeIn(fadeDuration));
+        yield return new WaitForSeconds(blackHoldDuration);
+
+        AsyncOperation loadOp = SceneManager.LoadSceneAsync(sceneName);
+        while (!loadOp.isDone)
+            yield return null;
+
+        if (movementLocked)
+            ToggleMovement(false);
+
+        if (deathSceneIntroSound != null)
+            AudioSource.PlayClipAtPoint(deathSceneIntroSound, Vector3.zero);
+
+        yield return StartCoroutine(fader.FadeOut(fadeDuration));
     }
 }

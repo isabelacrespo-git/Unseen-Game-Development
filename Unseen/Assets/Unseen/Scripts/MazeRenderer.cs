@@ -29,6 +29,7 @@ public class MazeRenderer : MonoBehaviour
     [Header("Hatch Spawning")]
     [SerializeField] GameObject hatchPrefab;
     [SerializeField, Min(0f)] float hatchMaxDistanceFromPlayer = 6f;
+    [SerializeField, Min(0f)] float hatchMinDistanceFromPlayer = 1.5f;
     [SerializeField] float hatchHeightOffset = 0f;
     [SerializeField] Vector3 hatchRotationOffsetEuler = new Vector3(0f, 0f, -180f);
 
@@ -285,9 +286,13 @@ public class MazeRenderer : MonoBehaviour
             playerTransform = ResolvePlayerTransform();
 
         List<int> candidateIndices = new List<int>();
-        if (playerTransform != null && hatchMaxDistanceFromPlayer > 0f)
+        if (playerTransform != null)
         {
-            float maxDistSqr = hatchMaxDistanceFromPlayer * hatchMaxDistanceFromPlayer;
+            bool useMax = hatchMaxDistanceFromPlayer > 0f;
+            bool useMin = hatchMinDistanceFromPlayer > 0f;
+            float maxDistSqr = useMax ? hatchMaxDistanceFromPlayer * hatchMaxDistanceFromPlayer : float.PositiveInfinity;
+            float minDistSqr = useMin ? hatchMinDistanceFromPlayer * hatchMinDistanceFromPlayer : 0f;
+
             Vector3 playerPos = playerTransform.position;
             Vector3 playerFlat = new Vector3(playerPos.x, 0f, playerPos.z);
 
@@ -295,7 +300,8 @@ public class MazeRenderer : MonoBehaviour
             {
                 Vector3 cellPos = generatedCells[i].position;
                 Vector3 cellFlat = new Vector3(cellPos.x, 0f, cellPos.z);
-                if ((cellFlat - playerFlat).sqrMagnitude <= maxDistSqr)
+                float distSqr = (cellFlat - playerFlat).sqrMagnitude;
+                if (distSqr >= minDistSqr && distSqr <= maxDistSqr)
                 {
                     candidateIndices.Add(i);
                 }

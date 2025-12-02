@@ -88,6 +88,15 @@ MonoBehaviour:
   spawnCollisionCheckRadius: 0.35
   maxSpawnAttemptsPerEntity: 10
   playerTransform: {fileID: 0}
+  flashlightPrefab: {fileID: 0}
+  flashlightForwardDistance: 0.8
+  flashlightDropHeight: 2.5
+  hatchPrefab: {fileID: 2370977644151961921, guid: fa5234248885b5442bd343ffd882edd5,
+    type: 3}
+  hatchMaxDistanceFromPlayer: 50
+  hatchMinDistanceFromPlayer: 10
+  hatchHeightOffset: 1
+  hatchRotationOffsetEuler: {x: 0, y: 0, z: -180}
 --- !u!114 &269473218662766534
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -10588,25 +10588,9 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9008289998669891548, guid: 00bd48b108f751540ad68b5bb17bde86,
         type: 3}
-      propertyPath: hatchPrefab
-      value: 
-      objectReference: {fileID: 2370977644151961921, guid: fa5234248885b5442bd343ffd882edd5,
-        type: 3}
-    - target: {fileID: 9008289998669891548, guid: 00bd48b108f751540ad68b5bb17bde86,
-        type: 3}
       propertyPath: entityParent
       value: 
       objectReference: {fileID: 277492457}
-    - target: {fileID: 9008289998669891548, guid: 00bd48b108f751540ad68b5bb17bde86,
-        type: 3}
-      propertyPath: hatchHeightOffset
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 9008289998669891548, guid: 00bd48b108f751540ad68b5bb17bde86,
-        type: 3}
-      propertyPath: hatchMaxDistanceFromPlayer
-      value: 15
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -699,8 +699,9 @@ MonoBehaviour:
   flashlightDropHeight: 2.5
   hatchPrefab: {fileID: 6718212404002653846, guid: f93bdfba577d7204792fc1f5b3e5bc3d,
     type: 3}
-  hatchMaxDistanceFromPlayer: 6
-  hatchHeightOffset: 0
+  hatchMaxDistanceFromPlayer: 50
+  hatchMinDistanceFromPlayer: 10
+  hatchHeightOffset: 1
   hatchRotationOffsetEuler: {x: 0, y: 0, z: -180}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

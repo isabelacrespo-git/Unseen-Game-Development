@@ -29,6 +29,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Maze 1.unity
     guid: a5f74b2dc845ab74d87344cb755fc25b
+  - enabled: 1
+    path: Assets/Unseen/Scenes/IntroNature.unity
+    guid: d26eaf23c91acf646ba1d4b9dfb052bc
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: ed72be55522c8448bae8b0d66fa21adf,
       type: 2}

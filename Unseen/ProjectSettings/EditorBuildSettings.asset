@@ -12,7 +12,7 @@ EditorBuildSettings:
     path: Assets/Unseen/Scenes/Starting Screen.unity
     guid: 70c5f7c0619d5a540850e11451e12e9f
   - enabled: 1
-    path: Assets/Scenes/mainScene.unity
+    path: Assets/Unseen/Scenes/mainScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
     path: Assets/Scenes/PuzzleRoomPipes.unity
@@ -26,6 +26,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Unseen/Scenes/DeathScene.unity
     guid: 46bd47a372d53594fba7c23b9a800243
+  - enabled: 1
+    path: Assets/Scenes/Maze 1.unity
+    guid: a5f74b2dc845ab74d87344cb755fc25b
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: ed72be55522c8448bae8b0d66fa21adf,
       type: 2}

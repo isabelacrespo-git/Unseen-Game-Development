@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Box
   - Trail
+  - Red
+  - PuzzlePipe
+  - PipeKey
   layers:
   - Default
   - TransparentFX
